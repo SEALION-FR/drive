@@ -275,12 +275,12 @@ class Base(Configuration):
     # This is used to limit the size of the request body in memory.
     # This also limits the size of the file that can be uploaded to the server.
     DATA_UPLOAD_MAX_MEMORY_SIZE = values.PositiveIntegerValue(
-        2 * GB,
+        0,
         environ_name="DATA_UPLOAD_MAX_MEMORY_SIZE",
         environ_prefix=None,
     )
     RESTRICT_UPLOAD_FILE_TYPE = values.BooleanValue(
-        default=True,
+        default=False,
         environ_name="RESTRICT_UPLOAD_FILE_TYPE",
         environ_prefix=None,
     )

@@ -346,18 +346,16 @@ export const useUploadZone = ({ item }: { item: Item }) => {
 
       // Filter out files that exceed the maximum upload size.
       // maxSize is undefined when DATA_UPLOAD_MAX_MEMORY_SIZE is not configured,
-      // meaning no size limit is enforced. Note: a value of 0 would also disable
-      // the check (falsy), which is acceptable since 0 is not a valid file size limit.
+      // and a value of 0 means no size limit is enforced.
       const maxSize = config.DATA_UPLOAD_MAX_MEMORY_SIZE;
-      const validFiles =
-        maxSize !== undefined && maxSize !== null
-          ? upload.files.filter((file) => file.size <= maxSize)
-          : upload.files;
-      const tooLargeFiles =
-        maxSize !== undefined && maxSize !== null
-          ? upload.files.filter((file) => file.size > maxSize)
-          : [];
-      if (maxSize !== undefined && maxSize !== null) {
+      const hasLimit = maxSize !== undefined && maxSize !== null && maxSize > 0;
+      const validFiles = hasLimit
+        ? upload.files.filter((file) => file.size <= maxSize)
+        : upload.files;
+      const tooLargeFiles = hasLimit
+        ? upload.files.filter((file) => file.size > maxSize)
+        : [];
+      if (hasLimit) {
         for (const file of tooLargeFiles) {
           addToast(
             <ToasterItem type="error">

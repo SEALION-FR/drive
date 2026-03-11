@@ -716,7 +716,7 @@ class ItemViewSet(
         )
         file_size = head_response["ContentLength"]
 
-        if file_size > settings.DATA_UPLOAD_MAX_MEMORY_SIZE:
+        if settings.DATA_UPLOAD_MAX_MEMORY_SIZE > 0 and file_size > settings.DATA_UPLOAD_MAX_MEMORY_SIZE:
             self._complete_item_deletion(item)
             logger.info(
                 "upload_ended: file size (%s) for file %s higher than the allowed max size",

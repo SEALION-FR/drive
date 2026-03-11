@@ -37,6 +37,7 @@ import {
   removeQuotes,
   useCunninghamTheme,
 } from "@/features/ui/cunningham/useCunninghamTheme";
+import { ThemeProvider } from "@/features/ui/theme/useTheme";
 import { ResponsiveDivs } from "@/features/ui/components/responsive/ResponsiveDivs";
 import { FeedbackFooterMobile } from "@/features/feedback/Feedback";
 import { useRouter } from "next/router";
@@ -111,9 +112,11 @@ export default function MyApp({
   const [theme, setTheme] = useState<string>("anct");
 
   return (
-    <AppContext.Provider value={{ theme, setTheme }}>
-      <MyAppInner Component={Component} pageProps={pageProps} router={router} />
-    </AppContext.Provider>
+    <ThemeProvider>
+      <AppContext.Provider value={{ theme, setTheme }}>
+        <MyAppInner Component={Component} pageProps={pageProps} router={router} />
+      </AppContext.Provider>
+    </ThemeProvider>
   );
 }
 

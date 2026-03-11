@@ -26,8 +26,56 @@
 @use "./../features/layouts/components/left-panel/LeftPanelMobile.scss";
 @use "./../pages/index.scss" as *;
 @use "./../pages/sdk/index.scss" as *;
+// Dark mode: override Cunningham semantic tokens when data-theme="dark" is set on <html>
+[data-theme="dark"] {
+  // Surface backgrounds
+  --c--contextuals--background--surface--primary: #181B24;
+  --c--contextuals--background--surface--secondary: #222631;
+  --c--contextuals--background--surface--tertiary: #2B303D;
+
+  // Border
+  --c--contextuals--border--surface--primary: #3F4759;
+
+  // Neutral content (text)
+  --c--contextuals--content--semantic--neutral--primary: #EEF1F4;
+  --c--contextuals--content--semantic--neutral--secondary: #A4ABBC;
+  --c--contextuals--content--semantic--neutral--tertiary: #8891A4;
+  --c--contextuals--content--semantic--neutral--on-neutral: #181B24;
+
+  // Brand backgrounds (keep vivid, lighten hover slightly)
+  --c--contextuals--background--semantic--brand--secondary: #1B2E5F;
+  --c--contextuals--background--semantic--brand--secondary-hover: #223E9E;
+  --c--contextuals--background--semantic--brand--tertiary: #172446;
+  --c--contextuals--background--semantic--brand--tertiary-hover: #1B2E5F;
+
+  // Neutral semantic backgrounds
+  --c--contextuals--background--semantic--neutral--secondary: #363B4C;
+  --c--contextuals--background--semantic--neutral--secondary-hover: #3F4759;
+  --c--contextuals--background--semantic--neutral--tertiary: #2B303D;
+  --c--contextuals--background--semantic--neutral--tertiary-hover: #363B4C;
+
+  // Disabled
+  --c--contextuals--background--semantic--disabled--primary: #363B4C;
+  --c--contextuals--background--semantic--disabled--secondary: #2B303D;
+
+  // Contextual background (used for selection, text input…)
+  --c--contextuals--background--text--primary: #222631;
+
+  // Brand content (text)
+  --c--contextuals--content--semantic--brand--primary: #A2B6FF;
+  --c--contextuals--content--semantic--brand--secondary: #90A7FF;
+  --c--contextuals--content--semantic--brand--tertiary: #7E98FF;
+
+  // Logo colors (use dark variants)
+  --c--contextuals--content--logo1: #95ABFF;
+  --c--contextuals--content--logo2: #95ABFF;
+}
+
 body {
   margin: 0;
+  background-color: var(--c--contextuals--background--surface--tertiary);
+  color: var(--c--contextuals--content--semantic--neutral--primary);
+  transition: background-color 0.2s ease, color 0.2s ease;
 }
 
 * {
