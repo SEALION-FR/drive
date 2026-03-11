@@ -170,7 +170,7 @@ def test_api_items_upload_root_resource_server_using_access_token(
     client.credentials(HTTP_AUTHORIZATION=f"Bearer {user_token}")
 
     response = client.post(
-        f"/external_api/v1.0/items/",
+        "/external_api/v1.0/items/",
         {
             "type": models.ItemTypeChoices.FILE,
             "filename": "file.txt",
@@ -604,7 +604,9 @@ def test_api_items_trashbin_resource_server_allowed(
     # Create a soft-deleted item owned by the user
     now = timezone.now() - timedelta(days=15)
     item = factories.ItemFactory(
-        link_reach=models.LinkReachChoices.RESTRICTED, deleted_at=now
+        link_reach=models.LinkReachChoices.RESTRICTED,
+        deleted_at=now,
+        update_upload_state=models.ItemUploadStateChoices.READY,
     )
     factories.UserItemAccessFactory(
         item=item, user=user_specific_sub, role=models.RoleChoices.OWNER
