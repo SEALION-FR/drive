@@ -1,0 +1,197 @@
+name: drive-prod
+
+services:
+  postgresql:
+    image: postgres:16
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -d $${POSTGRES_DB} -U $${POSTGRES_USER}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    env_file:
+      - env.d/production/postgresql
+    volumes:
+      - ./data/postgresql:/var/lib/postgresql/data
+
+  redis:
+    image: redis:5
+    restart: unless-stopped
+
+  minio:
+    image: minio/minio
+    restart: unless-stopped
+    environment:
+      - MINIO_ROOT_USER=drive
+      - MINIO_ROOT_PASSWORD=akF7s7g8cohLHXsJ
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 5s
+      timeout: 20s
+      retries: 20
+    entrypoint: ""
+    command: minio server --console-address :9001 /data
+    volumes:
+      - ./data/media:/data
+
+  createbuckets:
+    image: minio/mc
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: >
+      sh -c "
+      /usr/bin/mc alias set drive http://minio:9000 drive akF7s7g8cohLHXsJ && \
+      /usr/bin/mc mb --ignore-existing drive/drive-media-storage && \
+      /usr/bin/mc version enable drive/drive-media-storage && \
+      exit 0;"
+
+  app:
+    build:
+      context: .
+      target: backend-production
+      args:
+        DOCKER_USER: 1000
+    image: drive:backend-production
+    restart: unless-stopped
+    environment:
+      - DJANGO_CONFIGURATION=Production
+    env_file:
+      - env.d/production/common
+      - env.d/production/postgresql
+    volumes:
+      - ./data/static:/data/static
+    networks:
+      - traefik-network
+      - default
+    depends_on:
+      postgresql:
+        condition: service_healthy
+      redis:
+        condition: service_started
+      createbuckets:
+        condition: service_completed_successfully
+
+  celery:
+    build:
+      context: .
+      target: backend-production
+      args:
+        DOCKER_USER: 1000
+    image: drive:backend-production
+    restart: unless-stopped
+    command: ["celery", "-A", "drive.celery_app", "worker", "-l", "INFO"]
+    environment:
+      - DJANGO_CONFIGURATION=Production
+    env_file:
+      - env.d/production/common
+      - env.d/production/postgresql
+    depends_on:
+      postgresql:
+        condition: service_healthy
+      redis:
+        condition: service_started
+
+  frontend:
+    build:
+      context: .
+      dockerfile: ./src/frontend/Dockerfile
+      target: frontend-production
+      args:
+        API_ORIGIN: "https://drive.sealion.fr"
+        DOCKER_USER: 1000
+    image: drive:frontend-production
+    restart: unless-stopped
+
+  nginx:
+    image: nginx:1.25
+    restart: unless-stopped
+    ports:
+      - "8084:8083"
+    volumes:
+      - ./docker/files/production/etc/nginx/conf.d:/etc/nginx/conf.d:ro
+    networks:
+      - traefik-network
+      - default
+    depends_on:
+      - app
+      - frontend
+
+  kc_postgresql:
+    image: postgres:14.3
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    env_file:
+      - env.d/production/kc_postgresql
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.3.2
+    restart: unless-stopped
+    ports:
+      - "8085:8080"
+    volumes:
+      - ./docker/auth/realm.json:/opt/keycloak/data/import/realm.json
+    command:
+      - start
+      - --features=preview
+      - --import-realm
+      - --proxy=edge
+      - --hostname=https://drive-auth.sealion.fr
+      - --hostname-strict=false
+      - --http-enabled=true
+    environment:
+      KEYCLOAK_ADMIN: admin
+      KEYCLOAK_ADMIN_PASSWORD: akF7s7g8cohLHXsJ
+      KC_DB: postgres
+      KC_DB_URL_HOST: kc_postgresql
+      KC_DB_URL_DATABASE: keycloak
+      KC_DB_PASSWORD: akF7s7g8cohLHXsJ
+      KC_DB_USERNAME: drive
+      KC_DB_SCHEMA: public
+      PROXY_ADDRESS_FORWARDING: "true"
+    networks:
+      - traefik-network
+      - default
+    depends_on:
+      kc_postgresql:
+        condition: service_healthy
+
+  collabora:
+    image: collabora/code:latest
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9980/hosting/discovery"]
+      interval: 30s
+      retries: 5
+      start_period: 60s
+      timeout: 10s
+    environment:
+      - extra_params=--o:ssl.enable=false
+      - username=drive
+      - password=akF7s7g8cohLHXsJ
+      - server_name=drive.sealion.fr
+      - aliasgroup1=app:8000
+
+  onlyoffice:
+    image: onlyoffice/documentserver-de
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/hosting/discovery"]
+      interval: 30s
+      retries: 5
+      start_period: 60s
+      timeout: 10s
+    environment:
+      TZ: "Europe/Paris"
+      USE_UNAUTHORIZED_STORAGE: "true"
+    volumes:
+      - ./docker/onlyoffice/local-development.json:/etc/onlyoffice/documentserver/local-production-linux.json
+
+networks:
+  default: {}
+  traefik-network:
+    external: true
