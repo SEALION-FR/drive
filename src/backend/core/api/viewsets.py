@@ -1618,9 +1618,9 @@ class ItemViewSet(
                 try:
                     with default_storage.open(file_item.file_key) as f:
                         zf.writestr(get_zip_path(file_item), f.read())
-                except Exception:  # pylint: disable=broad-except
+                except Exception as e:  # pylint: disable=broad-except
                     logger.warning(
-                        "Could not add file '%s' to ZIP archive", file_item.pk
+                        "Could not add file '%s' to ZIP archive: %s", file_item.pk, e
                     )
                     continue
 
