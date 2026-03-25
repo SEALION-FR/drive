@@ -156,7 +156,7 @@ export const useItemActionMenuItems = ({
       {
         icon: <span className="material-icons">download</span>,
         label: t("explorer.item.actions.download"),
-        isHidden: item.type === ItemType.FOLDER || minimal,
+        isHidden: minimal,
         callback: () => {
           handleDownloadItem(item);
         },

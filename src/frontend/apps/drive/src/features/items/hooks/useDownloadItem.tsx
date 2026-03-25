@@ -1,6 +1,6 @@
-import { Item, ItemUploadState } from "@/features/drivers/types";
+import { Item, ItemType, ItemUploadState } from "@/features/drivers/types";
 import { ModalSize, useModals } from "@gouvfr-lasuite/cunningham-react";
-import { downloadFile } from "../utils";
+import { downloadFile, downloadZip } from "../utils";
 import { useAuth } from "@/features/auth/Auth";
 import { useTranslation } from "react-i18next";
 import {
@@ -8,6 +8,7 @@ import {
   ToasterItem,
 } from "@/features/ui/components/toaster/Toaster";
 import posthog from "posthog-js";
+import { baseApiUrl } from "@/features/api/utils";
 
 export const useDownloadItem = () => {
   const { t } = useTranslation();
@@ -15,7 +16,33 @@ export const useDownloadItem = () => {
   const modals = useModals();
   const { user } = useAuth();
   const handleDownloadItem = async (item?: Item) => {
-    if (!item?.url || !item?.title) {
+    if (!item?.title) {
+      addToast(
+        <ToasterItem type="error">
+          <span className="material-icons">error</span>
+          <span>{t("file_download_modal.error.no_url_or_title")}</span>
+        </ToasterItem>
+      );
+      return;
+    }
+
+    if (item.type === ItemType.FOLDER) {
+      try {
+        const zipUrl = `${baseApiUrl()}items/${item.id}/download-zip/`;
+        await downloadZip(zipUrl, item.title);
+        posthog.capture("folder_download", { id: item.id });
+      } catch {
+        addToast(
+          <ToasterItem type="error">
+            <span className="material-icons">error</span>
+            <span>{t("file_download_modal.error.no_url_or_title")}</span>
+          </ToasterItem>
+        );
+      }
+      return;
+    }
+
+    if (!item?.url) {
       addToast(
         <ToasterItem type="error">
           <span className="material-icons">error</span>

@@ -43,6 +43,7 @@ env.bak/
 venv.bak/
 env.d/development/*.local
 env.d/terraform
+env.d/production/
 
 # Docker
 compose.override.yml

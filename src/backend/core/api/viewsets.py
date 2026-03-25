@@ -5,6 +5,7 @@ import json
 import logging
 import os
 import re
+import zipfile
 from io import BytesIO
 from urllib.parse import quote, unquote, urlparse
 
@@ -13,6 +14,7 @@ from django.contrib.postgres.search import TrigramSimilarity
 from django.core.cache import cache
 from django.core.exceptions import ValidationError
 from django.core.files.storage import default_storage
+from django.http import HttpResponse
 from django.db import models as db
 from django.db import transaction
 from django.db.models.expressions import RawSQL
@@ -1573,6 +1575,63 @@ class ItemViewSet(
             status=status.HTTP_302_FOUND,
             headers={"Location": redirect_url},
         )
+
+    @drf.decorators.action(detail=True, methods=["get"], url_path="download-zip")
+    def download_zip(self, request, *args, **kwargs):
+        """
+        Download a folder and all its contents as a ZIP file, preserving
+        the folder hierarchy.
+        """
+        item = self.get_object()
+
+        if item.type != models.ItemTypeChoices.FOLDER:
+            raise drf.exceptions.PermissionDenied()
+
+        # Get all descendants excluding deleted items
+        all_descendants = list(
+            item.descendants().filter(deleted_at__isnull=True)
+        )
+
+        # Build a path -> title mapping to reconstruct folder structure
+        path_to_title = {str(item.path): item.title}
+        for desc in all_descendants:
+            path_to_title[str(desc.path)] = desc.title
+
+        root_segments = str(item.path).split(".")
+
+        def get_zip_path(file_item):
+            """Build the relative path of a file inside the ZIP."""
+            segments = str(file_item.path).split(".")
+            relative = segments[len(root_segments):]
+            parts = []
+            for i in range(len(relative) - 1):
+                ancestor_path = ".".join(root_segments + relative[: i + 1])
+                parts.append(path_to_title.get(ancestor_path, relative[i]))
+            parts.append(file_item.title)
+            return "/".join(parts)
+
+        buffer = BytesIO()
+        with zipfile.ZipFile(buffer, "w", zipfile.ZIP_DEFLATED) as zf:
+            for file_item in all_descendants:
+                if file_item.type != models.ItemTypeChoices.FILE:
+                    continue
+                try:
+                    with default_storage.open(file_item.file_key) as f:
+                        zf.writestr(get_zip_path(file_item), f.read())
+                except Exception:  # pylint: disable=broad-except
+                    logger.warning(
+                        "Could not add file '%s' to ZIP archive", file_item.pk
+                    )
+                    continue
+
+        buffer.seek(0)
+        safe_title = quote(item.title)
+        response = HttpResponse(buffer.read(), content_type="application/zip")
+        response["Content-Disposition"] = (
+            f'attachment; filename="{item.title}.zip";'
+            f" filename*=UTF-8''{safe_title}.zip"
+        )
+        return response
 
     @drf.decorators.action(detail=False, methods=["get"], url_path="media-auth")
     def media_auth(self, request, *args, **kwargs):
